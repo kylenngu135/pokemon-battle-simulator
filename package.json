@@ -1,0 +1,51 @@
+{
+  "name": "pokemon-battle-simulator",
+  "version": "1.0.0",
+  "description": "This is a pokemon battle simulator",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev --prefix client\"",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.6",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "fs": "^0.0.1-security",
+    "node": "^26.3.0",
+    "socket.io": "^4.8.3",
+    "yaml": "^2.9.0"
+  },
+  "keywords": [],
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/fs-extra": "^11.0.4",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.3",
+    "@types/socket.io": "^3.0.1",
+    "@types/supertest": "^7.2.0",
+    "concurrently": "^10.0.3",
+    "jest": "^30.4.2",
+    "socket.io-client": "^4.8.3",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.11",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true
+  }
+}
