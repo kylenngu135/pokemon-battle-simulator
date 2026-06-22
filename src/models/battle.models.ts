@@ -312,3 +312,21 @@ export interface BattleOverPayload {
     forfeited?: boolean;
     forfeitedBy?: string;
 }
+
+export interface BattleRow {
+    id: string;
+    player1_name: string;
+    player2_name: string;
+    winner: string | null;
+    forfeited: number;
+    started_at: string;
+    finished_at: string;
+    total_turns: number;
+}
+
+export interface BattleTurnRow {
+    id: number;
+    battle_id: string;
+    turn_number: number;
+    log: string;
+}

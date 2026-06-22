@@ -2,7 +2,6 @@ import { BattlePokemon, BattleState, InvulnerableState } from '../models/battle.
 import { MoveResponse } from '../models/move.models';
 import { calculateDamage, checkAccuracy } from '../utils/damage.utils';
 import { applyStatChanges } from '../utils/battle.utils';
-import { moveCache } from '../cache/moveCache';
 
 // Moves that can hit through specific invulnerable states, and whether they deal double damage
 const AIRBORNE_PIERCING = new Set([16, 18, 87, 314, 239, 542, 681]);   // Gust, Whirlwind, Thunder, Twister, Sky Uppercut, Smack Down, Thousand Arrows, Hurricane

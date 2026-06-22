@@ -35,7 +35,7 @@
  *   - Hard to unit-test state transitions without a live socket server
  */
 
-import { BattleState, BattleEvent, BattleStatus, SideEffect } from '../models/battle.models';
+import { BattleState, BattleEvent, BattleStatus } from '../models/battle.models';
 import { battleReducer, ReducerResult } from './battleReducer';
 
 // Each status maps to the set of events that are valid transitions out of it.

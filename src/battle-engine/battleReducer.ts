@@ -22,8 +22,6 @@ import {
     isLocked,
     getLockedAction,
     syncLockStateAfterMove,
-    RAMPAGE_MOVE_IDS,
-    ROLLOUT_MOVE_IDS,
 } from './lockManager';
 
 export interface ReducerResult {
@@ -122,7 +120,7 @@ const classifyMoveEntry = (
     runDefHp: number,
 ): TurnEvent => {
     const { attackerName, defenderName, attackerPlayer, defenderPlayer,
-        attackerMaxHp, defenderMaxHp, postAttackerHp, postDefenderHp } = ctx;
+        attackerMaxHp, defenderMaxHp, postDefenderHp } = ctx;
 
     const targetOf = (name: string): 'player1' | 'player2' | undefined =>
         name === attackerName ? attackerPlayer : name === defenderName ? defenderPlayer : undefined;

@@ -52,7 +52,7 @@ describe('battle socket — join and ready', () => {
   it('emits battle:ready to both players when both join', (done) => {
     startBattle().then((battleId) => {
       let readyCount = 0;
-      const onReady = (data: { matchId: string; player1: any; player2: any; turn: number }) => {
+      const onReady = (data: { matchId: string; player1: { name: string; team: unknown[] }; player2: { name: string; team: unknown[] }; turn: number }) => {
         readyCount++;
         expect(data.matchId).toBe(battleId);
         expect(data.player1.name).toBe('Ash');
@@ -60,7 +60,7 @@ describe('battle socket — join and ready', () => {
         expect(Array.isArray(data.player1.team)).toBe(true);
         expect(Array.isArray(data.player2.team)).toBe(true);
         expect(typeof data.turn).toBe('number');
-        expect((data as any).battleState).toBeUndefined();
+        expect((data as Record<string, unknown>).battleState).toBeUndefined();
         if (readyCount === 2) done();
       };
 
@@ -133,7 +133,7 @@ describe('battle socket — turn resolution', () => {
         expect(typeof data.player1NeedsSwitch).toBe('boolean');
         expect(typeof data.player2NeedsSwitch).toBe('boolean');
         expect(typeof data.battleOver).toBe('boolean');
-        expect((data as any).battleState).toBeUndefined();
+        expect((data as Record<string, unknown>).battleState).toBeUndefined();
         resultCount++;
         if (resultCount === 2) done();
       };
@@ -249,7 +249,7 @@ describe('battle socket — forfeit', () => {
         expect(data.winner).toBe('Gary');
         expect(data.forfeited).toBe(true);
         expect(data.forfeitedBy).toBe('player1');
-        expect((data as any).battleState).toBeUndefined();
+        expect((data as Record<string, unknown>).battleState).toBeUndefined();
         done();
       };
 

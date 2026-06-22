@@ -1,5 +1,5 @@
 import { db } from './database';
-import { BattleState } from '../models/battle.models';
+import { BattleRow, BattleTurnRow, BattleState } from '../models/battle.models';
 
 export const saveBattle = (state: BattleState, forfeited: boolean = false): void => {
     const saveBattleStmt = db.prepare(`
@@ -36,14 +36,14 @@ export const saveBattle = (state: BattleState, forfeited: boolean = false): void
     saveAll(state);
 };
 
-export const getBattle = (battleId: string): any => {
-    return db.prepare('SELECT * FROM battles WHERE id = ?').get(battleId);
+export const getBattle = (battleId: string): BattleRow | undefined => {
+    return db.prepare('SELECT * FROM battles WHERE id = ?').get(battleId) as BattleRow | undefined;
 };
 
-export const getBattleTurns = (battleId: string): any[] => {
-    return db.prepare('SELECT * FROM battle_turns WHERE battle_id = ? ORDER BY turn_number ASC').all(battleId);
+export const getBattleTurns = (battleId: string): BattleTurnRow[] => {
+    return db.prepare('SELECT * FROM battle_turns WHERE battle_id = ? ORDER BY turn_number ASC').all(battleId) as BattleTurnRow[];
 };
 
-export const getAllBattles = (): any[] => {
-    return db.prepare('SELECT * FROM battles ORDER BY finished_at DESC').all();
+export const getAllBattles = (): BattleRow[] => {
+    return db.prepare('SELECT * FROM battles ORDER BY finished_at DESC').all() as BattleRow[];
 };

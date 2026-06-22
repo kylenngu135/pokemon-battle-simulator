@@ -14,7 +14,9 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:all": "concurrently \"npm run lint\" \"npm run lint --prefix client\""
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
@@ -38,13 +40,15 @@
     "@types/socket.io": "^3.0.1",
     "@types/supertest": "^7.2.0",
     "concurrently": "^10.0.3",
+    "eslint": "^10.5.0",
     "jest": "^30.4.2",
     "socket.io-client": "^4.8.3",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "tsx": "^4.22.4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.0"
   },
   "allowScripts": {
     "better-sqlite3@12.11.1": true

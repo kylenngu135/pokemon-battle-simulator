@@ -1,6 +1,6 @@
 import { BattlePokemon, BattleState, PrimaryStatus, Weather } from '../models/battle.models';
 import { MoveResponse } from '../models/move.models';
-import { getActivePokemon, applyStatChanges } from '../utils/battle.utils';
+import { getActivePokemon } from '../utils/battle.utils';
 import { getTrapDamage, advanceTrap, TRAPPING_MOVE_NAMES } from './lockManager';
 
 // Move IDs that set weather

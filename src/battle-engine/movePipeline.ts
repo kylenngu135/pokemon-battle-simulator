@@ -2,6 +2,7 @@ import { BattlePokemon, BattleState, PrimaryStatus, Weather } from '../models/ba
 import { MoveResponse } from '../models/move.models';
 import { moveCache } from '../cache/moveCache';
 import { TRAPPING_MOVE_NAMES } from './lockManager';
+import { getStatMultiplier } from '../data/statStages';
 import { getActivePokemon, applyStatChanges } from '../utils/battle.utils';
 import { applyPrimaryStatus, applyVolatileStatus, applyWeather } from './effectsEngine';
 import {
@@ -12,12 +13,10 @@ import {
     handleMultiHit,
     handleCharging,
     handleStatChanges,
-    getSolarBeamPowerMod,
     consumePP,
     applyChargeTurnBonuses,
     handleCrashDamage,
     applyHalfHpCost,
-    DamageResult,
 } from './pipelineHandlers';
 
 export interface MoveEffectResult {
@@ -681,7 +680,6 @@ const handleHealingWish = (
 // Accuracy check helper (without moveCache lookup since we already have the move)
 const checkAccuracy = (move: MoveResponse, attacker: BattlePokemon, defender: BattlePokemon): boolean => {
     if (move.accuracy === null) return true;
-    const { getStatMultiplier } = require('../data/statStages');
     const accuracyStage = attacker.statStages.accuracy - defender.statStages.evasion;
     const accuracyMultiplier = getStatMultiplier(accuracyStage);
     return Math.random() < (move.accuracy / 100) * accuracyMultiplier;

@@ -3,10 +3,8 @@ import {
     applyVolatileStatus,
     applySecondaryEffects,
     processEndOfTurn,
-    checkParalysis,
     checkConfusion,
     checkSleep,
-    checkFreeze,
     checkRecharging,
 } from '../../battle-engine/effectsEngine';
 import { MoveResponse } from '../../models/move.models';

@@ -39,10 +39,10 @@ describe('POST /v1/battles/start', () => {
   it('each pokemon only has the 4 submitted moves', async () => {
     const res = await request(app).post('/v1/battles/start').send(validStartBody);
     expect(res.status).toBe(201);
-    res.body.player1.team.forEach((pokemon: any) => {
+    res.body.player1.team.forEach((pokemon: { moves: unknown[] }) => {
       expect(pokemon.moves.length).toBeLessThanOrEqual(4);
     });
-    res.body.player2.team.forEach((pokemon: any) => {
+    res.body.player2.team.forEach((pokemon: { moves: unknown[] }) => {
       expect(pokemon.moves.length).toBeLessThanOrEqual(4);
     });
   });

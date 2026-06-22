@@ -1,5 +1,4 @@
 import { BattleState, BattlePokemon } from '../models/battle.models';
-import { moveCache } from '../cache/moveCache';
 
 export const checkBattleOver = (state: BattleState): boolean => {
     const p1Lost = state.player1.team.every((p) => p.fainted);
