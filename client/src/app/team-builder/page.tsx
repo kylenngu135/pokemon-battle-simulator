@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { PokemonSearch } from '../../components/team-builder/PokemonSearch';
 import { PokemonCard } from '../../components/team-builder/PokemonCard';
 import { fetchPokemonById, startBattle } from '../../lib/api';
@@ -138,11 +139,14 @@ export default function TeamBuilder() {
                   className="bg-gray-800 border border-gray-700 rounded-xl p-3 flex items-center gap-3"
                 >
                   {entry.pokemon.sprites.front_default && (
-                    <img
+                    <Image
                       src={entry.pokemon.sprites.front_default}
                       alt={entry.pokemon.name}
+                      width={48}
+                      height={48}
                       className="w-12 h-12"
                       style={{ imageRendering: 'pixelated' }}
+                      unoptimized
                     />
                   )}
                   <div className="flex flex-col gap-1 min-w-0">

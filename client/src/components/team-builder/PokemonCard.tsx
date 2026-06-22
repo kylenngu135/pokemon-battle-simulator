@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { SelectedPokemon, Move } from '../../types/pokemon.types';
 import { MoveSelector } from './MoveSelector';
 
@@ -16,11 +17,14 @@ export const PokemonCard = ({ entry, onRemove, onMovesChange }: PokemonCardProps
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {pokemon.sprites.front_default && (
-            <img
+            <Image
               src={pokemon.sprites.front_default}
               alt={pokemon.name}
+              width={48}
+              height={48}
               className="w-12 h-12"
               style={{ imageRendering: 'pixelated' }}
+              unoptimized
             />
           )}
           <div>

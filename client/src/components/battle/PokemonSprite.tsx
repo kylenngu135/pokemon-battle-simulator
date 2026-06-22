@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 
 interface PokemonSpriteProps {
   src: string | null;
@@ -14,11 +15,14 @@ export const PokemonSprite = ({ src, name, side }: PokemonSpriteProps) => {
   );
 
   return (
-    <img
+    <Image
       src={src}
       alt={name}
+      width={side === 'player' ? 192 : 160}
+      height={side === 'player' ? 192 : 160}
       className={`${side === 'player' ? 'w-48 h-48' : 'w-40 h-40'} object-contain`}
       style={{ imageRendering: 'pixelated' }}
+      unoptimized
     />
   );
 };
