@@ -3,38 +3,49 @@ import { POKEAPI_BASE } from '../data/sharedLink';
 
 export const pokemonCache = new Map<number, PokemonResponse>();
 
-export const initPokemonCache = async (): Promise<void> => {
-    console.log('Populating pokemon cache...');
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-    const listResponse = await fetch(`${POKEAPI_BASE}/pokemon?limit=151&offset=0`);
-    const listData = await listResponse.json() as PokemonListResponse;
+export const initPokemonCache = async (retries = 3): Promise<void> => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            console.log(`Populating pokemon cache (attempt ${attempt})...`);
 
-    await Promise.all(
-        listData.results.map(async (_, index: number) => {
-            const id = index + 1;
-            const response = await fetch(`${POKEAPI_BASE}/pokemon/${id}`);
-            const raw = await response.json() as PokemonResponse;
+            const listResponse = await fetch(`${POKEAPI_BASE}/pokemon?limit=151&offset=0`);
+            const listData = await listResponse.json() as PokemonListResponse;
 
-            const pokemon: PokemonResponse = {
-                id: raw.id,
-                name: raw.name,
-                base_experience: raw.base_experience,
-                height: raw.height,
-                weight: raw.weight,
-                sprites: {
-                    front_default: raw.sprites.front_default,
-                    back_default: raw.sprites.back_default,
-                    front_shiny: raw.sprites.front_shiny,
-                    back_shiny: raw.sprites.back_shiny,
-                },
-                types: raw.types,
-                stats: raw.stats,
-                moves: raw.moves,
-            };
+            await Promise.all(
+                listData.results.map(async (_, index: number) => {
+                    const id = index + 1;
+                    const response = await fetch(`${POKEAPI_BASE}/pokemon/${id}`);
+                    const raw = await response.json() as PokemonResponse;
 
-            pokemonCache.set(id, pokemon);
-        })
-    );
+                    const pokemon: PokemonResponse = {
+                        id: raw.id,
+                        name: raw.name,
+                        base_experience: raw.base_experience,
+                        height: raw.height,
+                        weight: raw.weight,
+                        sprites: {
+                            front_default: raw.sprites.front_default,
+                            back_default: raw.sprites.back_default,
+                            front_shiny: raw.sprites.front_shiny,
+                            back_shiny: raw.sprites.back_shiny,
+                        },
+                        types: raw.types,
+                        stats: raw.stats,
+                        moves: raw.moves,
+                    };
 
-    console.log(`Pokemon cache ready — ${pokemonCache.size} pokemon loaded.`);
+                    pokemonCache.set(id, pokemon);
+                })
+            );
+
+            console.log(`Pokemon cache ready — ${pokemonCache.size} pokemon loaded.`);
+            return;
+        } catch (err) {
+            if (attempt === retries) throw err;
+            console.warn(`Pokemon cache fetch failed (attempt ${attempt}), retrying in 5s...`);
+            await delay(5000);
+        }
+    }
 };

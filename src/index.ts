@@ -22,7 +22,11 @@ registerBattleSocketHandlers(io);
 
 const init = async (): Promise<void> => {
     initDatabase();
-    await initCache();
+    try {
+        await initCache();
+    } catch (err) {
+        console.error('Cache initialization failed, starting server without cache:', err);
+    }
 };
 
 if (process.env.NODE_ENV !== 'test') {
