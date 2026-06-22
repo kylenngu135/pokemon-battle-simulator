@@ -40,4 +40,5 @@ export interface MoveResponse {
     meta: MoveMeta;
     stat_changes: MoveStatChange[];
     target: NamedResource;
+    flags: Record<string, boolean>;
 }

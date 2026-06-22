@@ -33,6 +33,14 @@ export const applyStatChanges = (
         const statName = stat.name as keyof typeof pokemon.statStages;
         if (statName in pokemon.statStages) {
             const prev = pokemon.statStages[statName];
+            if (change > 0 && prev >= 6) {
+                log.push(`${pokemon.name}'s ${statName} won't go any higher!`);
+                return;
+            }
+            if (change < 0 && prev <= -6) {
+                log.push(`${pokemon.name}'s ${statName} won't go any lower!`);
+                return;
+            }
             pokemon.statStages[statName] = Math.max(-6, Math.min(6, prev + change));
             const direction = change > 0 ? 'rose' : 'fell';
             const magnitude = Math.abs(change) >= 2 ? ' sharply' : '';

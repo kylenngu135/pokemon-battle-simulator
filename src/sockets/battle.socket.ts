@@ -1,10 +1,9 @@
 import { Server, Socket } from 'socket.io';
 import { activeBattles } from '../store/activeBattles';
-import { PendingAction } from '../models/battle.models';
-import { determineTurnOrder, resolveMoveAction, resolveSwitchAction } from '../utils/turn.utils';
-import { checkBattleOver, needsSwitch, getActivePokemon } from '../utils/battle.utils';
+import { SideEffect } from '../models/battle.models';
 import { validateBattle } from './battle.middleware';
 import { saveBattle } from '../db/battle.repository';
+import { dispatch } from '../battle-engine';
 
 interface JoinPayload {
     battleId: string;
@@ -14,13 +13,66 @@ interface JoinPayload {
 interface ActionPayload {
     battleId: string;
     player: 'player1' | 'player2';
-    action: PendingAction;
+    action: { type: 'attack' | 'switch'; moveId?: number; switchToIndex?: number };
 }
 
 interface ForfeitPayload {
     battleId: string;
     player: 'player1' | 'player2';
 }
+
+const applyEffect = (io: Server, battleId: string, effect: SideEffect): void => {
+    switch (effect.type) {
+        case 'EMIT_BATTLE_READY':
+            io.to(battleId).emit('battle:ready', effect.payload);
+            break;
+        case 'EMIT_TURN_RESULT':
+            io.to(battleId).emit('battle:turnResult', effect.payload);
+            break;
+        case 'EMIT_SWITCH_REQUIRED': {
+            const switchState = activeBattles.get(battleId);
+            const switchSocketId = switchState?.[effect.player].socketId;
+            if (switchSocketId) io.to(switchSocketId).emit('battle:switchRequired', { player: effect.player });
+            break;
+        }
+        case 'EMIT_WAITING_FOR_OPPONENT_SWITCH': {
+            const waitState = activeBattles.get(battleId);
+            const waitSocketId = waitState?.[effect.player].socketId;
+            if (waitSocketId) io.to(waitSocketId).emit('battle:waitingForOpponentSwitch', {});
+            break;
+        }
+        case 'EMIT_BATTLE_OVER':
+            io.to(battleId).emit('battle:over', effect.payload);
+            break;
+        case 'EMIT_OPPONENT_DISCONNECTED':
+            io.to(battleId).emit('battle:opponentDisconnected', { disconnectedPlayer: effect.disconnectedPlayer });
+            break;
+        case 'SAVE_BATTLE': {
+            const state = activeBattles.get(battleId);
+            if (state) saveBattle(state, effect.forfeited);
+            break;
+        }
+        case 'DELETE_BATTLE':
+            activeBattles.delete(battleId);
+            break;
+        case 'AUTO_RESOLVE_RECHARGE': {
+            // Both active pokemon are recharging — neither player will submit input.
+            // Dispatch a synthetic ACTION_SUBMITTED using the pre-injected player1 action.
+            const rcState = activeBattles.get(battleId);
+            if (rcState?.pendingActions.player1 && rcState?.pendingActions.player2) {
+                const rcResult = dispatch(battleId, {
+                    type: 'ACTION_SUBMITTED',
+                    player: 'player1',
+                    action: rcState.pendingActions.player1,
+                });
+                for (const eff of rcResult.sideEffects) {
+                    applyEffect(io, battleId, eff);
+                }
+            }
+            break;
+        }
+    }
+};
 
 export const registerBattleSocketHandlers = (io: Server): void => {
     io.on('connection', (socket: Socket) => {
@@ -41,34 +93,14 @@ export const registerBattleSocketHandlers = (io: Server): void => {
                 }
 
                 socket.join(battleId);
-                state[player].socketId = socket.id;
-                const bothJoined = !!state.player1.socketId && !!state.player2.socketId;
-                if (bothJoined) {
-                    const mapTeam = (team: import('../models/battle.models').BattlePokemon[]) =>
-                        team.map((p) => ({
-                            id: p.id,
-                            name: p.name,
-                            currentHp: p.currentHp,
-                            maxHp: p.maxHp,
-                            types: p.types,
-                            moves: p.moves,
-                            sprites: p.sprites,
-                            fainted: p.fainted,
-                        }));
-                    io.to(battleId).emit('battle:ready', {
-                        matchId: state.matchId,
-                        player1: {
-                            name: state.player1.name,
-                            team: mapTeam(state.player1.team),
-                            activePokemonIndex: state.player1.activePokemonIndex,
-                        },
-                        player2: {
-                            name: state.player2.name,
-                            team: mapTeam(state.player2.team),
-                            activePokemonIndex: state.player2.activePokemonIndex,
-                        },
-                        turn: state.turn,
-                    });
+
+                const result = dispatch(battleId, { type: 'PLAYER_JOINED', player, socketId: socket.id });
+                if (result.error) {
+                    socket.emit('battle:error', { message: result.error });
+                    return;
+                }
+                for (const effect of result.sideEffects) {
+                    applyEffect(io, battleId, effect);
                 }
             } catch (err) {
                 socket.emit('battle:error', { message: err instanceof Error ? err.message : 'Unknown error' });
@@ -78,119 +110,37 @@ export const registerBattleSocketHandlers = (io: Server): void => {
         socket.on('battle:action', ({ battleId, player, action }: ActionPayload) => {
             validateBattle(socket, battleId, player, (state) => {
                 try {
-                    // ── Case 1: faint-forced switch ──────────────────────────────────────────
-                    // A pokemon died last turn; only the affected player(s) need to send in a
-                    // replacement. This is NOT a turn — it resolves immediately and independently
-                    // of the opponent.
-                    if (state.awaitingFaintSwitch[player]) {
+                    // Route to the correct event based on battle status
+                    if (state.status === 'switching' && state.switchesRequired.includes(player)) {
+                        // Forced faint-switch: must submit a switch action
                         if (action.type !== 'switch' || action.switchToIndex === undefined) {
-                            socket.emit('battle:error', { message: 'You must switch in a replacement for your fainted pokemon' });
-                            return;
-                        }
-                        const target = state[player].team[action.switchToIndex];
-                        if (!target || target.fainted) {
-                            socket.emit('battle:error', { message: 'Cannot switch to that pokemon — it is fainted or does not exist' });
-                            return;
-                        }
-
-                        const faintSwitchLog: string[] = [];
-                        resolveSwitchAction(state, player, action.switchToIndex, faintSwitchLog);
-                        state.log.push(...faintSwitchLog);
-                        state.awaitingFaintSwitch[player] = false;
-
-                        io.to(battleId).emit('battle:turnResult', {
-                            turnLog: faintSwitchLog,
-                            player1NeedsSwitch: state.awaitingFaintSwitch.player1,
-                            player2NeedsSwitch: state.awaitingFaintSwitch.player2,
-                            battleOver: false,
-                            winner: null,
-                        });
-                        return;
-                    }
-
-                    // Block regular turn actions while the opponent still owes a faint switch.
-                    if (state.awaitingFaintSwitch.player1 || state.awaitingFaintSwitch.player2) {
-                        socket.emit('battle:error', { message: 'Waiting for a faint switch to be resolved' });
-                        return;
-                    }
-
-                    // ── Case 2: normal turn action (attack or voluntary switch) ──────────────
-                    if (action.type === 'attack' && action.moveId === undefined) {
-                        socket.emit('battle:error', { message: 'Attack action requires moveId' });
-                        return;
-                    }
-                    if (action.type === 'switch' && action.switchToIndex === undefined) {
-                        socket.emit('battle:error', { message: 'Switch action requires switchToIndex' });
-                        return;
-                    }
-                    if (action.type === 'attack' && action.moveId !== undefined) {
-                        const activePokemon = getActivePokemon(state, player);
-                        const hasMove = activePokemon.moves.some((m) => m.id === action.moveId);
-                        if (!hasMove) {
                             socket.emit('battle:error', {
-                                message: `${activePokemon.name} does not know move ${action.moveId}`,
+                                message: 'You must switch in a replacement for your fainted pokemon',
                             });
                             return;
                         }
-                    }
-
-                    state.pendingActions[player] = action;
-
-                    const p1Action = state.pendingActions.player1;
-                    const p2Action = state.pendingActions.player2;
-                    if (!p1Action || !p2Action) return;
-
-                    const turnLog: string[] = [];
-                    const turnOrder = determineTurnOrder(state, p1Action, p2Action);
-
-                    let battleOver = false;
-                    for (const { player: currentPlayer, action: currentAction } of turnOrder) {
-                        const opponent: 'player1' | 'player2' = currentPlayer === 'player1' ? 'player2' : 'player1';
-
-                        if (currentAction.type === 'attack' && currentAction.moveId !== undefined) {
-                            const attacker = getActivePokemon(state, currentPlayer);
-                            const defender = getActivePokemon(state, opponent);
-                            resolveMoveAction(attacker, defender, currentAction.moveId, turnLog);
-                        } else if (currentAction.type === 'switch' && currentAction.switchToIndex !== undefined) {
-                            resolveSwitchAction(state, currentPlayer, currentAction.switchToIndex, turnLog);
+                        const result = dispatch(battleId, {
+                            type: 'SWITCH_SUBMITTED',
+                            player,
+                            switchToIndex: action.switchToIndex,
+                        });
+                        if (result.error) {
+                            socket.emit('battle:error', { message: result.error });
+                            return;
                         }
-
-                        if (checkBattleOver(state)) {
-                            battleOver = true;
-                            break;
+                        for (const effect of result.sideEffects) {
+                            applyEffect(io, battleId, effect);
                         }
-                    }
-
-                    state.pendingActions = {};
-                    state.turn += 1;
-                    state.log.push(...turnLog);
-                    state.turnLogs.push(turnLog);
-
-                    const player1NeedsSwitch = needsSwitch(state, 'player1');
-                    const player2NeedsSwitch = needsSwitch(state, 'player2');
-
-                    if (player1NeedsSwitch) state.awaitingFaintSwitch.player1 = true;
-                    if (player2NeedsSwitch) state.awaitingFaintSwitch.player2 = true;
-
-                    io.to(battleId).emit('battle:turnResult', {
-                        turnLog,
-                        player1NeedsSwitch,
-                        player2NeedsSwitch,
-                        battleOver,
-                        winner: state.winner,
-                    });
-
-                    if (player1NeedsSwitch) {
-                        io.to(battleId).emit('battle:switchRequired', { player: 'player1' });
-                    }
-                    if (player2NeedsSwitch) {
-                        io.to(battleId).emit('battle:switchRequired', { player: 'player2' });
-                    }
-
-                    if (battleOver) {
-                        saveBattle(state);
-                        io.to(battleId).emit('battle:over', { winner: state.winner });
-                        activeBattles.delete(battleId);
+                    } else {
+                        // Normal turn action (attack or voluntary switch)
+                        const result = dispatch(battleId, { type: 'ACTION_SUBMITTED', player, action });
+                        if (result.error) {
+                            socket.emit('battle:error', { message: result.error });
+                            return;
+                        }
+                        for (const effect of result.sideEffects) {
+                            applyEffect(io, battleId, effect);
+                        }
                     }
                 } catch (err) {
                     socket.emit('battle:error', { message: err instanceof Error ? err.message : 'Unknown error' });
@@ -199,15 +149,16 @@ export const registerBattleSocketHandlers = (io: Server): void => {
         });
 
         socket.on('battle:forfeit', ({ battleId, player }: ForfeitPayload) => {
-            validateBattle(socket, battleId, player, (state) => {
+            validateBattle(socket, battleId, player, () => {
                 try {
-                    state.status = 'finished';
-                    const opponent: 'player1' | 'player2' = player === 'player1' ? 'player2' : 'player1';
-                    state.winner = state[opponent].name;
-
-                    saveBattle(state, true);
-                    io.to(battleId).emit('battle:over', { winner: state.winner, forfeited: true, forfeitedBy: player });
-                    activeBattles.delete(battleId);
+                    const result = dispatch(battleId, { type: 'FORFEIT', player });
+                    if (result.error) {
+                        socket.emit('battle:error', { message: result.error });
+                        return;
+                    }
+                    for (const effect of result.sideEffects) {
+                        applyEffect(io, battleId, effect);
+                    }
                 } catch (err) {
                     socket.emit('battle:error', { message: err instanceof Error ? err.message : 'Unknown error' });
                 }
@@ -217,24 +168,15 @@ export const registerBattleSocketHandlers = (io: Server): void => {
         socket.on('disconnect', () => {
             try {
                 for (const [battleId, state] of activeBattles) {
-                    let disconnectedPlayer: 'player1' | 'player2' | null = null;
-
-                    if (state.player1.socketId === socket.id) {
-                        disconnectedPlayer = 'player1';
-                    } else if (state.player2.socketId === socket.id) {
-                        disconnectedPlayer = 'player2';
+                    if (state.player1.socketId === socket.id || state.player2.socketId === socket.id) {
+                        const result = dispatch(battleId, { type: 'PLAYER_DISCONNECTED', socketId: socket.id });
+                        if (!result.error) {
+                            for (const effect of result.sideEffects) {
+                                applyEffect(io, battleId, effect);
+                            }
+                        }
+                        break;
                     }
-
-                    if (!disconnectedPlayer) continue;
-
-                    state.status = 'finished';
-                    const opponent: 'player1' | 'player2' = disconnectedPlayer === 'player1' ? 'player2' : 'player1';
-                    state.winner = state[opponent].name;
-
-                    io.to(battleId).emit('battle:opponentDisconnected', { disconnectedPlayer });
-                    io.to(battleId).emit('battle:over', { winner: state.winner });
-                    activeBattles.delete(battleId);
-                    break;
                 }
             } catch (err) {
                 console.error('Error handling disconnect:', err);

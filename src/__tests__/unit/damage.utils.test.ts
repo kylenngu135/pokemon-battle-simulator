@@ -10,9 +10,54 @@ const makePokemon = (overrides: Partial<BattlePokemon> = {}): BattlePokemon => (
   stats: { attack: 84, defense: 78, specialAttack: 109, specialDefense: 85, speed: 100 },
   statStages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0, speed: 0, accuracy: 0, evasion: 0 },
   types: ['fire', 'flying'],
+  currentTypes: ['fire', 'flying'],
   moves: [],
   sprites: { front: '', back: '' },
   fainted: false,
+  status: null,
+  sleepTurnsRemaining: 0,
+  toxicCounter: 1,
+  recharging: false,
+  confused: false,
+  confusionTurnsRemaining: 0,
+  flinched: false,
+  seeded: false,
+  seededBy: null,
+  reflect: false,
+  lightScreen: false,
+  reflectTurnsRemaining: 0,
+  lightScreenTurnsRemaining: 0,
+  charging: false,
+  chargingMoveId: null,
+  chargingTurnsRemaining: 0,
+  invulnerableState: 'none',
+  biding: false,
+  bideTurnsRemaining: 0,
+  bideDamageStored: 0,
+  raging: false,
+  substituteHp: 0,
+  disabledMoveId: null,
+  disabledTurnsRemaining: 0,
+  lastPhysicalDamageTaken: 0,
+  protecting: false,
+  protectConsecutiveTurns: 0,
+  mistActive: false,
+  mistTurnsRemaining: 0,
+  lockedMove: null,
+  lockType: null,
+  lockTurnsRemaining: 0,
+  lockTotalTurns: 0,
+  rampageTurns: 0,
+  rolloutConsecutiveTurns: 0,
+  rolloutBasePower: 0,
+  defenseCurlUsed: false,
+  furyCutterConsecutiveTurns: 0,
+  trappedByMove: null,
+  trappedByPlayer: null,
+  trappedTurnsRemaining: 0,
+  ingrainActive: false,
+  aquaRingActive: false,
+  roostUsedThisTurn: false,
   ...overrides,
 });
 
@@ -45,6 +90,7 @@ describe('calculateDamage', () => {
       },
       stat_changes: [],
       target: { name: 'selected-pokemon', url: '' },
+      flags: {},
     });
 
     moveCache.set(86, {
@@ -74,6 +120,7 @@ describe('calculateDamage', () => {
       },
       stat_changes: [],
       target: { name: 'selected-pokemon', url: '' },
+      flags: {},
     });
   });
 
@@ -149,6 +196,7 @@ describe('checkAccuracy', () => {
       },
       stat_changes: [],
       target: { name: 'selected-pokemon', url: '' },
+      flags: {},
     });
 
     const attacker = makePokemon();

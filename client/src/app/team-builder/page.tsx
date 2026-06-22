@@ -59,7 +59,7 @@ export default function TeamBuilder() {
 
   const isTeamValid = () =>
     playerName.trim().length > 0 &&
-    team.length === 6 &&
+    team.length >= 1 && team.length <= 6 &&
     team.every((entry) => entry.moves.length >= 1);
 
   const handleStartBattle = async () => {
@@ -169,7 +169,7 @@ export default function TeamBuilder() {
 
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-black uppercase tracking-wide">Team Builder</h1>
-          <span className="text-gray-400">{team.length}/6 Pokémon</span>
+          <span className="text-gray-400">{team.length}/6 Pokémon · Select 1–6</span>
         </div>
 
         <input

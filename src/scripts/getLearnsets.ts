@@ -14,8 +14,8 @@ const POKEMON = [
 ];
 
 const getLearnsets = async (): Promise<void> => {
-    for (const p of POKEMON) {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${p.id}`);
+    for (let id = 1; id <= 151; id++) {
+        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
         const data = await res.json() as any;
         const gen1Moves = data.moves
             .filter((m: any) =>
@@ -27,7 +27,7 @@ const getLearnsets = async (): Promise<void> => {
                 name: m.move.name,
                 id: parseInt(m.move.url.split('/').filter(Boolean).pop()),
             }));
-        console.log(`\n${p.name}:`, JSON.stringify(gen1Moves, null, 2));
+        console.log(`\n#${id} ${data.name}:`, JSON.stringify(gen1Moves));
     }
 };
 

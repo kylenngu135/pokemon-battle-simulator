@@ -1,60 +1,142 @@
 'use client';
-import { BattleMove } from '../../types/battle.types';
+import { BattleMove, BattlePokemon } from '../../types/battle.types';
 
-const TYPE_COLORS: Record<string, string> = {
-  normal: 'bg-gray-400',
-  fire: 'bg-orange-500',
-  water: 'bg-blue-500',
-  electric: 'bg-yellow-400',
-  grass: 'bg-green-500',
-  ice: 'bg-cyan-300',
-  fighting: 'bg-red-700',
-  poison: 'bg-purple-500',
-  ground: 'bg-yellow-600',
-  flying: 'bg-indigo-400',
-  psychic: 'bg-pink-500',
-  bug: 'bg-lime-500',
-  rock: 'bg-yellow-800',
-  ghost: 'bg-purple-800',
-  dragon: 'bg-indigo-700',
-  dark: 'bg-gray-800',
-  steel: 'bg-gray-400',
-  fairy: 'bg-pink-300',
+const TYPE_BG: Record<string, string> = {
+  normal: '#9ca3af', fire: '#f97316', water: '#3b82f6', electric: '#facc15',
+  grass: '#22c55e', ice: '#67e8f9', fighting: '#991b1b', poison: '#a855f7',
+  ground: '#ca8a04', flying: '#818cf8', psychic: '#ec4899', bug: '#84cc16',
+  rock: '#92400e', ghost: '#6b21a8', dragon: '#4338ca', dark: '#1f2937',
+  steel: '#9ca3af', fairy: '#f9a8d4',
 };
 
 interface MoveMenuProps {
   moves: BattleMove[];
   onMoveSelect: (moveId: number) => void;
   disabled: boolean;
+  recharging?: boolean;
+  activePokemon?: BattlePokemon;
 }
 
-export const MoveMenu = ({ moves, onMoveSelect, disabled }: MoveMenuProps) => {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {moves.map((move) => (
+export const MoveMenu = ({ moves, onMoveSelect, disabled, recharging, activePokemon }: MoveMenuProps) => {
+  const charging = activePokemon?.charging ?? false;
+  const biding = activePokemon?.biding ?? false;
+  const raging = activePokemon?.raging ?? false;
+  const lockType = activePokemon?.lockedMove !== null ? activePokemon?.lockType : null;
+  const disabledMoveId = activePokemon?.disabledMoveId ?? null;
+
+  if (recharging) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <p style={{ color: '#facc15', fontWeight: 'bold', fontSize: '14px' }} className="animate-pulse">
+          Recharging...
+        </p>
+      </div>
+    );
+  }
+
+  if (charging) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <p style={{ color: '#818cf8', fontWeight: 'bold', fontSize: '14px' }} className="animate-pulse">
+          Charging up...
+        </p>
+      </div>
+    );
+  }
+
+  if (biding) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <p style={{ color: '#fb923c', fontWeight: 'bold', fontSize: '14px' }} className="animate-pulse">
+          Storing energy...
+        </p>
+      </div>
+    );
+  }
+
+  if (lockType === 'rampage') {
+    const turnsLeft = activePokemon?.lockTurnsRemaining ?? 0;
+    const moveName = activePokemon?.moves.find(m => m.id === activePokemon?.lockedMove)?.name ?? 'move';
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '4px' }}>
+        <p style={{ color: '#f97316', fontWeight: 'bold', fontSize: '14px' }} className="animate-pulse">
+          Rampaging! ({turnsLeft} turn{turnsLeft !== 1 ? 's' : ''} left)
+        </p>
+        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px', textTransform: 'uppercase' }}>
+          {moveName.replace(/-/g, ' ')}
+        </p>
+      </div>
+    );
+  }
+
+  if (lockType === 'rollout') {
+    const consecutive = activePokemon?.rolloutConsecutiveTurns ?? 1;
+    const moveName = activePokemon?.moves.find(m => m.id === activePokemon?.lockedMove)?.name ?? 'move';
+    const power = (activePokemon?.rolloutBasePower ?? 30) * Math.pow(2, consecutive - 1);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '4px' }}>
+        <p style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '14px' }} className="animate-pulse">
+          Rolling! (Hit {consecutive}/5)
+        </p>
+        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px', textTransform: 'uppercase' }}>
+          {moveName.replace(/-/g, ' ')} — Power: {power}
+        </p>
+      </div>
+    );
+  }
+
+  if (raging) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '4px' }}>
+        <p style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '14px' }}>
+          Raging!
+        </p>
         <button
-          key={move.id}
-          onClick={() => onMoveSelect(move.id)}
-          disabled={disabled || move.currentPp <= 0}
-          className={`
-            flex flex-col items-start p-3 rounded-lg border-2 border-gray-600
-            ${TYPE_COLORS[move.type] ?? 'bg-gray-500'}
-            ${disabled || move.currentPp <= 0
-              ? 'opacity-50 cursor-not-allowed'
-              : 'hover:brightness-110 cursor-pointer active:scale-95'
-            }
-            transition-all duration-150
-          `}
+          onClick={() => onMoveSelect(99)}
+          disabled={disabled}
+          style={{
+            padding: '4px 16px', borderRadius: '6px', border: '2px solid #ef4444',
+            background: '#7f1d1d', color: 'white', fontWeight: 'bold', fontSize: '12px',
+            cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+          }}
         >
-          <span className="text-white font-bold text-sm uppercase tracking-wide">
-            {move.name.replace('-', ' ')}
-          </span>
-          <div className="flex justify-between w-full mt-1">
-            <span className="text-white text-xs opacity-80 uppercase">{move.type}</span>
-            <span className="text-white text-xs opacity-80">PP {move.currentPp}/{move.maxPp}</span>
-          </div>
+          RAGE
         </button>
-      ))}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+      {moves.map((move) => {
+        const isDisabled = move.id === disabledMoveId;
+        const isUnusable = disabled || move.currentPp <= 0 || isDisabled;
+        const bg = TYPE_BG[move.type] ?? '#6b7280';
+        return (
+          <button
+            key={move.id}
+            onClick={() => !isUnusable && onMoveSelect(move.id)}
+            disabled={isUnusable}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+              padding: '6px 8px', borderRadius: '6px', border: '2px solid rgba(255,255,255,0.2)',
+              background: isUnusable ? '#374151' : bg,
+              opacity: isUnusable ? 0.45 : 1,
+              cursor: isUnusable ? 'not-allowed' : 'pointer',
+              transition: 'filter 0.1s',
+            }}
+          >
+            <span style={{ color: 'white', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {move.name.replace(/-/g, ' ')}
+              {isDisabled ? ' (Disabled)' : ''}
+            </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginTop: '2px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '10px', textTransform: 'uppercase' }}>{move.type}</span>
+              <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '10px' }}>PP {move.currentPp}/{move.maxPp}</span>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 };

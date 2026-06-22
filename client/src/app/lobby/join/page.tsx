@@ -35,7 +35,7 @@ export default function JoinLobbyPage() {
   const isFormValid = () =>
     playerName.trim().length > 0 &&
     matchId.trim().length > 0 &&
-    team.length === 6 &&
+    team.length >= 1 && team.length <= 6 &&
     team.every((entry) => entry.moves.length >= 1);
 
   const handleJoin = async () => {
@@ -82,7 +82,7 @@ export default function JoinLobbyPage() {
       <div className="max-w-4xl mx-auto flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-black uppercase tracking-wide">Join Lobby</h1>
-          <span className="text-gray-400">{team.length}/6 Pokémon</span>
+          <span className="text-gray-400">{team.length}/6 Pokémon · Select 1–6</span>
         </div>
 
         <input
