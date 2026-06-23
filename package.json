@@ -16,7 +16,8 @@
     "test:coverage": "jest --coverage",
     "type-check": "tsc --noEmit",
     "lint": "eslint src",
-    "lint:all": "concurrently \"npm run lint\" \"npm run lint --prefix client\""
+    "lint:all": "concurrently \"npm run lint\" \"npm run lint --prefix client\"",
+    "dump-data": "tsx src/scripts/dumpGameData.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

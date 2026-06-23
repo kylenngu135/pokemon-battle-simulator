@@ -1,51 +1,17 @@
-import { PokemonResponse, PokemonListResponse } from '../models/pokemon.models';
-import { POKEAPI_BASE } from '../data/sharedLink';
+import fs from 'fs';
+import path from 'path';
+import { PokemonResponse } from '../models/pokemon.models';
 
 export const pokemonCache = new Map<number, PokemonResponse>();
 
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-export const initPokemonCache = async (retries = 3): Promise<void> => {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-            console.log(`Populating pokemon cache (attempt ${attempt})...`);
-
-            const listResponse = await fetch(`${POKEAPI_BASE}/pokemon?limit=151&offset=0`);
-            const listData = await listResponse.json() as PokemonListResponse;
-
-            await Promise.all(
-                listData.results.map(async (_, index: number) => {
-                    const id = index + 1;
-                    const response = await fetch(`${POKEAPI_BASE}/pokemon/${id}`);
-                    const raw = await response.json() as PokemonResponse;
-
-                    const pokemon: PokemonResponse = {
-                        id: raw.id,
-                        name: raw.name,
-                        base_experience: raw.base_experience,
-                        height: raw.height,
-                        weight: raw.weight,
-                        sprites: {
-                            front_default: raw.sprites.front_default,
-                            back_default: raw.sprites.back_default,
-                            front_shiny: raw.sprites.front_shiny,
-                            back_shiny: raw.sprites.back_shiny,
-                        },
-                        types: raw.types,
-                        stats: raw.stats,
-                        moves: raw.moves,
-                    };
-
-                    pokemonCache.set(id, pokemon);
-                })
-            );
-
-            console.log(`Pokemon cache ready — ${pokemonCache.size} pokemon loaded.`);
-            return;
-        } catch (err) {
-            if (attempt === retries) throw err;
-            console.warn(`Pokemon cache fetch failed (attempt ${attempt}), retrying in 5s...`);
-            await delay(5000);
-        }
+export const initPokemonCache = async (): Promise<void> => {
+    console.log('Populating pokemon cache from local JSON...');
+    // Resolved from project root via process.cwd() so the same src/data/ files work
+    // in both dev (tsx src/index.ts) and production (node dist/index.js run from root).
+    const dataPath = path.join(process.cwd(), 'src', 'data', 'pokemon-cache.json');
+    const raw: PokemonResponse[] = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+    for (const p of raw) {
+        pokemonCache.set(p.id, p);
     }
+    console.log(`Pokemon cache ready — ${pokemonCache.size} pokemon loaded.`);
 };
