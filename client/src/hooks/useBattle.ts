@@ -25,6 +25,7 @@ interface BattleUIState {
   myNeedsSwitch: boolean;
   waitingForOpponent: boolean;
   waitingForOpponentSwitch: boolean;
+  bothNeedSwitch: boolean;
   weather: Weather;
   weatherTurnsRemaining: number;
   error: string | null;
@@ -32,12 +33,15 @@ interface BattleUIState {
   player1WishTurnsRemaining: number;
   player2WishActive: boolean;
   player2WishTurnsRemaining: number;
+  forfeitedBy: string | null;
+  showForfeitOverlay: boolean;
 }
 
 type BattleUIAction =
   | { type: 'BATTLE_READY'; payload: BattleReadyPayload }
   | { type: 'TURN_RESULT'; payload: TurnResultPayload; myPlayer: 'player1' | 'player2' }
   | { type: 'BATTLE_OVER'; payload: BattleOverPayload }
+  | { type: 'FORFEIT_OVERLAY_DONE' }
   | { type: 'SWITCH_REQUIRED'; player: string }
   | { type: 'WAITING_FOR_OPPONENT_SWITCH' }
   | { type: 'ERROR'; message: string }
@@ -55,6 +59,7 @@ const initialState: BattleUIState = {
   myNeedsSwitch: false,
   waitingForOpponent: false,
   waitingForOpponentSwitch: false,
+  bothNeedSwitch: false,
   weather: 'none',
   weatherTurnsRemaining: 0,
   error: null,
@@ -62,6 +67,8 @@ const initialState: BattleUIState = {
   player1WishTurnsRemaining: 0,
   player2WishActive: false,
   player2WishTurnsRemaining: 0,
+  forfeitedBy: null,
+  showForfeitOverlay: false,
 };
 
 const battleUIReducer = (state: BattleUIState, action: BattleUIAction): BattleUIState => {
@@ -92,6 +99,7 @@ const battleUIReducer = (state: BattleUIState, action: BattleUIAction): BattleUI
         fullLog: [...state.fullLog, ...payload.turnLog],
         myNeedsSwitch,
         waitingForOpponentSwitch: !myNeedsSwitch && opponentNeedsSwitch,
+        bothNeedSwitch: payload.player1NeedsSwitch && payload.player2NeedsSwitch,
         weather: payload.weather ?? state.weather,
         weatherTurnsRemaining: payload.weatherTurnsRemaining ?? state.weatherTurnsRemaining,
         player1WishActive: payload.player1WishActive ?? state.player1WishActive,
@@ -112,11 +120,22 @@ const battleUIReducer = (state: BattleUIState, action: BattleUIAction): BattleUI
     }
 
     case 'BATTLE_OVER':
+      if (action.payload.forfeited) {
+        return {
+          ...state,
+          winner: action.payload.winner,
+          forfeitedBy: action.payload.forfeitedBy ?? null,
+          showForfeitOverlay: true,
+        };
+      }
       return {
         ...state,
         battleStatus: 'finished',
         winner: action.payload.winner,
       };
+
+    case 'FORFEIT_OVERLAY_DONE':
+      return { ...state, showForfeitOverlay: false, battleStatus: 'finished' };
 
     case 'SWITCH_REQUIRED':
       return state;
@@ -222,6 +241,15 @@ export const useBattle = (matchId: string, player: 'player1' | 'player2') => {
     socket.emit('battle:forfeit', { battleId: matchId, player });
   }, [matchId, player]);
 
+  // Auto-dismiss forfeit overlay after 2.5 s then show the win/lose screen
+  useEffect(() => {
+    if (!battleState.showForfeitOverlay) return;
+    const timer = setTimeout(() => {
+      uiDispatch({ type: 'FORFEIT_OVERLAY_DONE' });
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [battleState.showForfeitOverlay]);
+
   const { visibleLog, isPlaying, displayedHp, displayedStatus } = useTurnPlayback(
     playbackEvents,
     playbackInitHp,
@@ -243,6 +271,7 @@ export const useBattle = (matchId: string, player: 'player1' | 'player2') => {
     winner: battleState.winner,
     myNeedsSwitch: battleState.myNeedsSwitch,
     waitingForOpponentSwitch: battleState.waitingForOpponentSwitch,
+    bothNeedSwitch: battleState.bothNeedSwitch,
     weather: battleState.weather,
     weatherTurnsRemaining: battleState.weatherTurnsRemaining,
     player1NeedsSwitch:
@@ -261,6 +290,8 @@ export const useBattle = (matchId: string, player: 'player1' | 'player2') => {
     player1WishTurnsRemaining: battleState.player1WishTurnsRemaining,
     player2WishActive: battleState.player2WishActive,
     player2WishTurnsRemaining: battleState.player2WishTurnsRemaining,
+    forfeitedBy: battleState.forfeitedBy,
+    showForfeitOverlay: battleState.showForfeitOverlay,
     submitAction,
     forfeit,
   };

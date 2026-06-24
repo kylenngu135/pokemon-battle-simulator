@@ -87,6 +87,7 @@ export const BattleScreen = ({ matchId, player }: BattleScreenProps) => {
     player2,
     myNeedsSwitch,
     waitingForOpponentSwitch,
+    bothNeedSwitch,
     battleOver,
     winner,
     error,
@@ -102,6 +103,8 @@ export const BattleScreen = ({ matchId, player }: BattleScreenProps) => {
     isPlaying,
     displayedHp,
     displayedStatus,
+    forfeitedBy,
+    showForfeitOverlay,
     submitAction,
     forfeit,
   } = useBattle(matchId, player);
@@ -114,6 +117,7 @@ export const BattleScreen = ({ matchId, player }: BattleScreenProps) => {
   const oppWishTurns = player === 'player1' ? player2WishTurnsRemaining : player1WishTurnsRemaining;
 
   const [menuState, setMenuState] = useState<MenuState>('action');
+  const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -173,7 +177,21 @@ export const BattleScreen = ({ matchId, player }: BattleScreenProps) => {
     );
   }
 
-  if (battleOver) {
+  if (showForfeitOverlay) {
+    const iForfeited = forfeitedBy === player;
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+        <h1 style={{ fontSize: '52px', fontWeight: 'bold', color: 'white', textAlign: 'center', letterSpacing: '0.02em' }}>
+          {iForfeited ? 'You forfeited the match.' : 'Opponent has surrendered!'}
+        </h1>
+        <p style={{ color: '#9ca3af', fontSize: '20px' }}>
+          {iForfeited ? 'Heading to results...' : `${winner} wins!`}
+        </p>
+      </div>
+    );
+  }
+
+  if (battleOver && !isPlaying) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#030712', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
         <h1 style={{ fontSize: '40px', fontWeight: 'bold', color: 'white' }}>
@@ -475,8 +493,9 @@ export const BattleScreen = ({ matchId, player }: BattleScreenProps) => {
           </div>
         )}
 
-        {/* Opponent selecting Pokemon overlay */}
-        {waitingForOpponentSwitch && (
+        {/* Opponent selecting Pokemon overlay — only after turn playback ends,
+            and not when both players are simultaneously selecting */}
+        {waitingForOpponentSwitch && !isPlaying && !bothNeedSwitch && (
           <div
             style={{
               position: 'absolute',
@@ -514,6 +533,41 @@ export const BattleScreen = ({ matchId, player }: BattleScreenProps) => {
           </div>
         )}
 
+        {/* Forfeit confirmation overlay */}
+        {showForfeitConfirm && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.8)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '24px',
+              zIndex: 50,
+            }}
+          >
+            <h2 style={{ color: 'white', fontSize: '28px', fontWeight: 'bold', textAlign: 'center' }}>
+              Are you sure you want to forfeit?
+            </h2>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button
+                onClick={() => { forfeit(); setShowForfeitConfirm(false); }}
+                style={{ padding: '12px 32px', background: '#dc2626', color: 'white', fontWeight: 'bold', borderRadius: '8px', fontSize: '18px', cursor: 'pointer', border: 'none' }}
+              >
+                Yes, Forfeit
+              </button>
+              <button
+                onClick={() => setShowForfeitConfirm(false)}
+                style={{ padding: '12px 32px', background: '#374151', color: 'white', fontWeight: 'bold', borderRadius: '8px', fontSize: '18px', cursor: 'pointer', border: 'none' }}
+              >
+                No, Continue
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Action panel (800×200, y=400) ── */}
         <div
           style={{
@@ -541,6 +595,12 @@ export const BattleScreen = ({ matchId, player }: BattleScreenProps) => {
                 </p>
                 <p style={{ color: '#9ca3af', fontSize: '13px' }}>
                   Waiting for opponent...
+                </p>
+              </div>
+            ) : waitingForOpponentSwitch && bothNeedSwitch ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <p style={{ color: '#9ca3af', fontSize: '16px' }} className="animate-pulse">
+                  Waiting for opponent to choose their Pokemon...
                 </p>
               </div>
             ) : myNeedsSwitch ? (
@@ -579,7 +639,7 @@ export const BattleScreen = ({ matchId, player }: BattleScreenProps) => {
               <ActionMenu
                 onBattle={() => setMenuState('fight')}
                 onParty={() => setMenuState('party')}
-                onForfeit={forfeit}
+                onForfeit={() => setShowForfeitConfirm(true)}
                 disabled={waitingForOpponent || waitingForOpponentSwitch}
               />
             ) : menuState === 'fight' ? (
